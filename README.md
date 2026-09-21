@@ -1,5 +1,7 @@
 # Linker Design and Analysis
 
+**Project website:** https://shafiqafkaar.github.io/linker_Design_and_Analysis/
+
 Python scripts for designing protein linkers with RFdiffusion and ProteinMPNN, validating designs with ColabFold, and analyzing linker geometry and confidence from predicted PDB structures.
 
 ## Files

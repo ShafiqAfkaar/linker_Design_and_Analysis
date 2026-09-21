@@ -1,0 +1,315 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="A computational pipeline for protein linker backbone generation, sequence design, structure validation, and PDB-based analysis.">
+  <title>Linker Design and Analysis</title>
+  <style>
+    :root {
+      --ink: #17221e;
+      --muted: #5d6d66;
+      --paper: #f7f6f0;
+      --card: rgba(255, 255, 255, 0.78);
+      --line: rgba(23, 34, 30, 0.13);
+      --green: #1f6a50;
+      --green-dark: #124534;
+      --teal: #4ca98a;
+      --gold: #d7a648;
+    }
+
+    * { box-sizing: border-box; }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      margin: 0;
+      color: var(--ink);
+      background:
+        radial-gradient(circle at 84% 8%, rgba(76, 169, 138, 0.20), transparent 30rem),
+        radial-gradient(circle at 8% 42%, rgba(215, 166, 72, 0.12), transparent 25rem),
+        var(--paper);
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      line-height: 1.6;
+    }
+
+    a { color: inherit; }
+
+    .shell {
+      width: min(1120px, calc(100% - 40px));
+      margin: 0 auto;
+    }
+
+    nav {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 24px 0;
+      font-size: 0.92rem;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-weight: 760;
+      letter-spacing: -0.02em;
+      text-decoration: none;
+    }
+
+    .mark {
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      background: conic-gradient(from 220deg, var(--green-dark), var(--teal), var(--gold), var(--green-dark));
+      box-shadow: inset 0 0 0 7px var(--paper);
+    }
+
+    .nav-links { display: flex; gap: 22px; }
+    .nav-links a { color: var(--muted); text-decoration: none; }
+    .nav-links a:hover { color: var(--green); }
+
+    .hero {
+      display: grid;
+      grid-template-columns: 1.25fr 0.75fr;
+      gap: 70px;
+      align-items: center;
+      min-height: 610px;
+      padding: 58px 0 88px;
+    }
+
+    .eyebrow {
+      margin: 0 0 16px;
+      color: var(--green);
+      font-size: 0.8rem;
+      font-weight: 800;
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+    }
+
+    h1, h2, h3 { line-height: 1.08; letter-spacing: -0.045em; }
+    h1 { margin: 0; max-width: 760px; font-family: Georgia, serif; font-size: clamp(3.3rem, 8vw, 6.8rem); font-weight: 500; }
+    h2 { margin: 0 0 18px; font-family: Georgia, serif; font-size: clamp(2rem, 5vw, 3.5rem); font-weight: 500; }
+    h3 { margin: 0 0 10px; font-size: 1.05rem; letter-spacing: -0.02em; }
+
+    .lead {
+      max-width: 700px;
+      margin: 25px 0 32px;
+      color: var(--muted);
+      font-size: clamp(1.05rem, 2vw, 1.25rem);
+    }
+
+    .actions { display: flex; flex-wrap: wrap; gap: 12px; }
+    .button {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 48px;
+      padding: 0 20px;
+      border: 1px solid var(--green-dark);
+      border-radius: 999px;
+      font-weight: 700;
+      text-decoration: none;
+      transition: transform 160ms ease, box-shadow 160ms ease, background 160ms ease;
+    }
+    .button:hover { transform: translateY(-2px); box-shadow: 0 10px 24px rgba(18, 69, 52, 0.14); }
+    .button.primary { color: white; background: var(--green-dark); }
+    .button.secondary { background: rgba(255, 255, 255, 0.55); }
+
+    .molecule {
+      position: relative;
+      aspect-ratio: 1;
+      min-height: 330px;
+      border: 1px solid var(--line);
+      border-radius: 48% 52% 46% 54% / 55% 43% 57% 45%;
+      background: linear-gradient(145deg, rgba(255,255,255,0.82), rgba(76,169,138,0.12));
+      box-shadow: 0 35px 90px rgba(23, 34, 30, 0.11);
+      animation: breathe 7s ease-in-out infinite;
+    }
+
+    .molecule::before,
+    .molecule::after {
+      content: "";
+      position: absolute;
+      border: 3px solid var(--green);
+      border-left-color: transparent;
+      border-bottom-color: var(--gold);
+      border-radius: 50%;
+      transform: rotate(-24deg);
+    }
+    .molecule::before { inset: 18%; }
+    .molecule::after { inset: 32% 12%; transform: rotate(56deg); opacity: 0.65; }
+
+    .node {
+      position: absolute;
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      background: var(--gold);
+      box-shadow: 0 0 0 7px rgba(215,166,72,0.18);
+    }
+    .node.one { top: 21%; left: 31%; }
+    .node.two { top: 48%; right: 18%; background: var(--teal); box-shadow: 0 0 0 7px rgba(76,169,138,0.18); }
+    .node.three { bottom: 17%; left: 37%; }
+
+    @keyframes breathe {
+      0%, 100% { transform: rotate(-2deg) scale(1); }
+      50% { transform: rotate(2deg) scale(1.025); }
+    }
+
+    section { padding: 92px 0; border-top: 1px solid var(--line); }
+    .section-intro { max-width: 690px; margin-bottom: 42px; color: var(--muted); }
+
+    .pipeline {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 16px;
+      counter-reset: stage;
+    }
+
+    .stage, .metric, .code-panel {
+      border: 1px solid var(--line);
+      background: var(--card);
+      box-shadow: 0 16px 40px rgba(23,34,30,0.055);
+      backdrop-filter: blur(12px);
+    }
+
+    .stage { min-height: 220px; padding: 24px; border-radius: 22px; counter-increment: stage; }
+    .stage::before {
+      content: "0" counter(stage);
+      display: block;
+      margin-bottom: 42px;
+      color: var(--green);
+      font: 700 0.78rem/1 monospace;
+      letter-spacing: 0.08em;
+    }
+    .stage p, .metric p { margin: 0; color: var(--muted); font-size: 0.93rem; }
+
+    .metrics { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; }
+    .metric { padding: 24px; border-radius: 18px; }
+    .metric strong { display: block; margin-bottom: 8px; color: var(--green-dark); font-family: Georgia, serif; font-size: 1.7rem; font-weight: 500; }
+
+    .usage-grid { display: grid; grid-template-columns: 0.8fr 1.2fr; gap: 44px; align-items: start; }
+    .code-panel { overflow-x: auto; padding: 26px; border-radius: 22px; }
+    pre { margin: 0; color: #dcece4; font: 0.88rem/1.75 ui-monospace, SFMono-Regular, Consolas, monospace; white-space: pre-wrap; }
+    .code-panel { background: #13271f; }
+    .note { margin-top: 22px; padding-left: 16px; border-left: 3px solid var(--gold); color: var(--muted); font-size: 0.92rem; }
+
+    footer {
+      display: flex;
+      justify-content: space-between;
+      gap: 24px;
+      padding: 34px 0 48px;
+      color: var(--muted);
+      font-size: 0.88rem;
+    }
+
+    @media (max-width: 850px) {
+      .hero { grid-template-columns: 1fr; gap: 42px; padding-top: 36px; }
+      .molecule { width: min(430px, 90%); margin: 0 auto; }
+      .pipeline, .metrics { grid-template-columns: repeat(2, 1fr); }
+      .usage-grid { grid-template-columns: 1fr; }
+    }
+
+    @media (max-width: 560px) {
+      .shell { width: min(100% - 26px, 1120px); }
+      .nav-links a:not(:last-child) { display: none; }
+      .pipeline, .metrics { grid-template-columns: 1fr; }
+      .hero { min-height: auto; padding-bottom: 64px; }
+      section { padding: 64px 0; }
+      footer { flex-direction: column; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { scroll-behavior: auto !important; animation: none !important; transition: none !important; }
+    }
+  </style>
+</head>
+<body>
+  <header class="shell">
+    <nav aria-label="Primary navigation">
+      <a class="brand" href="#top"><span class="mark" aria-hidden="true"></span> Linker Design &amp; Analysis</a>
+      <div class="nav-links">
+        <a href="#workflow">Workflow</a>
+        <a href="#analysis">Analysis</a>
+        <a href="https://github.com/ShafiqAfkaar/linker_Design_and_Analysis">GitHub ↗</a>
+      </div>
+    </nav>
+  </header>
+
+  <main id="top">
+    <div class="shell hero">
+      <div>
+        <p class="eyebrow">Computational protein engineering</p>
+        <h1>Design the connection.</h1>
+        <p class="lead">A focused Python workflow for generating protein linker backbones, designing sequences, validating predicted structures, and measuring linker geometry and confidence.</p>
+        <div class="actions">
+          <a class="button primary" href="https://github.com/ShafiqAfkaar/linker_Design_and_Analysis">View source code</a>
+          <a class="button secondary" href="#workflow">Explore the workflow</a>
+        </div>
+      </div>
+      <div class="molecule" aria-label="Abstract protein-linker illustration">
+        <span class="node one"></span>
+        <span class="node two"></span>
+        <span class="node three"></span>
+      </div>
+    </div>
+
+    <section id="workflow">
+      <div class="shell">
+        <p class="eyebrow">Pipeline</p>
+        <h2>From fixed motifs to ranked designs.</h2>
+        <p class="section-intro">The orchestration script connects established protein-design tools in four stages and keeps their outputs in a consistent directory structure.</p>
+        <div class="pipeline">
+          <article class="stage"><h3>RFdiffusion</h3><p>Generates candidate linker backbones between user-selected structural regions.</p></article>
+          <article class="stage"><h3>ProteinMPNN</h3><p>Samples amino-acid sequences for candidate structures while retaining fixed positions.</p></article>
+          <article class="stage"><h3>ColabFold</h3><p>Predicts each designed sequence for structure-based validation.</p></article>
+          <article class="stage"><h3>PDB analysis</h3><p>Extracts linker measurements, labels candidates, and writes a ranked CSV report.</p></article>
+        </div>
+      </div>
+    </section>
+
+    <section id="analysis">
+      <div class="shell">
+        <p class="eyebrow">Measured outputs</p>
+        <h2>A compact structural readout.</h2>
+        <p class="section-intro">The standalone analyzer reads predicted PDB structures and summarizes the region between the fixed N- and C-terminal segments.</p>
+        <div class="metrics">
+          <article class="metric"><strong>Sequence</strong><p>Residue sequence assigned to the linker interval.</p></article>
+          <article class="metric"><strong>pLDDT</strong><p>Mean local prediction confidence read from PDB B-factors.</p></article>
+          <article class="metric"><strong>Distance</strong><p>Cα-to-Cα end-to-end distance across the linker.</p></article>
+          <article class="metric"><strong>SASA</strong><p>Mean solvent-accessible surface area over linker residues.</p></article>
+        </div>
+      </div>
+    </section>
+
+    <section id="usage">
+      <div class="shell usage-grid">
+        <div>
+          <p class="eyebrow">Quick start</p>
+          <h2>Analyze predicted PDBs.</h2>
+          <p class="section-intro">The analysis component requires Python, NumPy, and Biopython. The complete design workflow additionally requires configured RFdiffusion, ProteinMPNN, and ColabFold installations.</p>
+          <a class="button secondary" href="https://github.com/ShafiqAfkaar/linker_Design_and_Analysis#readme">Read the documentation</a>
+          <p class="note">Prediction confidence is not equivalent to experimental stability. Computational candidates should be interpreted carefully and validated experimentally.</p>
+        </div>
+        <div class="code-panel" aria-label="Command example">
+<pre><code>git clone https://github.com/ShafiqAfkaar/linker_Design_and_Analysis.git
+cd linker_Design_and_Analysis
+python -m pip install -r requirements.txt
+
+python analyze_linker.py \
+  --input /path/to/pdb_results \
+  --phage_len 100 \
+  --pep_len 20 \
+  --output ./linker_results</code></pre>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="shell">
+    <span>Linker Design and Analysis</span>
+    <span>Open source on <a href="https://github.com/ShafiqAfkaar/linker_Design_and_Analysis">GitHub</a></span>
+  </footer>
+</body>
+</html>
